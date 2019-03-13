@@ -1,6 +1,7 @@
 const puppeteer = require("puppeteer");
 const _ = require("highland");
 const url = require("url");
+const glob = require("glob-to-regexp");
 const mapStackTrace = require("sourcemapped-stacktrace-node").default;
 const path = require("path");
 const fs = require("fs");
@@ -140,6 +141,7 @@ const crawl = async opt => {
     publicPath,
     sourceDir
   } = opt;
+  const exclude = options.exclude.map(g => glob(g, { extended: true, globstar: true}));
   let shuttingDown = false;
   let streamClosed = false;
 
@@ -173,8 +175,9 @@ const crawl = async opt => {
    * @returns {void}
    */
   const addToQueue = newUrl => {
-    const { hostname, search, hash } = url.parse(newUrl);
+    const { hostname, search, hash, pathname } = url.parse(newUrl);
     newUrl = newUrl.replace(`${search || ""}${hash || ""}`, "");
+    if (exclude.filter(regex => regex.test(pathname)).length > 0) return;
     if (hostname === "localhost" && !uniqueUrls.has(newUrl) && !streamClosed) {
       uniqueUrls.add(newUrl);
       enqued++;
